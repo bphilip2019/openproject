@@ -370,19 +370,6 @@ describe ::API::V3::Utilities::PathHelper do
     it_behaves_like 'resource', :grid
   end
 
-  describe 'string object paths' do
-    describe '#string_object' do
-      subject { helper.string_object 'foo' }
-
-      it_behaves_like 'api v3 path', '/string_objects?value=foo'
-
-      it 'escapes correctly' do
-        value = 'foo/bar baz'
-        expect(helper.string_object(value)).to eql('/api/v3/string_objects?value=foo%2Fbar%20baz')
-      end
-    end
-  end
-
   context 'status paths' do
     it_behaves_like 'show', :status
   end
