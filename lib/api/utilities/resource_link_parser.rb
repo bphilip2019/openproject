@@ -30,18 +30,12 @@
 module API
   module Utilities
     class ResourceLinkParser
-      # N.B. valid characters for URL path segments as of
-      # http://tools.ietf.org/html/rfc3986#section-3.3
-      SEGMENT_CHARACTER = '(\w|[-~!$&\'\(\)*+\.,:;=@]|%[0-9A-Fa-f]{2})'.freeze
-      RESOURCE_REGEX =
-        "/api/v(?<version>\\d)/(?<namespace>[\\w\/]+)/(?<id>#{SEGMENT_CHARACTER}+)\\z".freeze
-      SO_REGEX = "/api/v(?<version>\\d)/string_objects/?\\?value=(?<id>\\w*).*\\z".freeze
-
       class << self
         def parse(resource_link)
           # string objects have a quite different format from the usual resources (query-parameter)
           # we therefore have a specific regex to deal with them and a generic one for all others
-          parse_string_object(resource_link) || parse_resource(resource_link)
+          link = Addressable::URI.parse(resource_link)
+          parse_string_object(link) || parse_resource(link)
         end
 
         def parse_id(resource_link,
@@ -68,35 +62,37 @@ module API
         private
 
         def parse_resource(resource_link)
-          match = resource_matcher.match(resource_link)
+          match = resource_matcher.extract(resource_link)
 
           return nil unless match
 
-          {
-            version: match[:version],
-            namespace: match[:namespace],
-            id: ::URI.unescape(match[:id])
+          parsed = {
+            version: match['version'],
+            namespace: match['namespace'],
+            id: match['id']
           }
+
+          parsed.values.any?(&:nil?) || parsed[:id].end_with?('/') ? nil : parsed
         end
 
         def parse_string_object(resource_link)
-          match = string_object_matcher.match(resource_link)
+          match = string_object_matcher.extract(resource_link)
 
           return nil unless match
 
           {
-            version: match[:version],
+            version: match['version'],
             namespace: 'string_objects',
-            id: ::URI.unescape(match[:id])
+            id: (match['value'] || '').match(/\w*/)[0]
           }
         end
 
         def resource_matcher
-          @resource_matcher ||= Regexp.compile(RESOURCE_REGEX)
+          @resource_matcher ||= Addressable::Template.new("/api/v{version}/{namespace}/{+id}")
         end
 
         def string_object_matcher
-          @string_object_matcher ||= Regexp.compile(SO_REGEX)
+          @string_object_matcher ||= Addressable::Template.new("/api/v{version}/string_objects?value={+value}")
         end
 
         # returns whether expectation and actual are identical
