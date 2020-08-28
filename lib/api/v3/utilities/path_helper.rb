@@ -333,6 +333,11 @@ module API
           index :status
           show :status
 
+          def self.string_object(value)
+            val = ::ERB::Util::url_encode(value)
+            "#{root}/string_objects?value=#{val}"
+          end
+
           resources :time_entry
 
           def self.time_entries_activity(activity_id)
